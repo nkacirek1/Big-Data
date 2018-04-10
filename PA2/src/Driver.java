@@ -90,8 +90,6 @@ public class Driver {
                 if(job3.waitForCompletion(true)){
                     job4.getConfiguration().setLong(CountersClass.UpdateCount.N.name(), count.getValue());
                     if(job4.waitForCompletion(true)){
-
-
                         System.exit(job5.waitForCompletion(true) ? 0 : 1);
                     }
                 }
