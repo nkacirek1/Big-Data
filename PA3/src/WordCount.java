@@ -5,10 +5,11 @@ import org.apache.spark.api.java.JavaPairRDD;
 import java.util.Arrays;
 import scala.Tuple2;
 
-public class WordCount{
-    public static void main(String[] args){
+public class WordCount {
+
+    public static void main(String[] args) throws Exception{
         // Create a Java Spark Context.
-        SparkConf conf = new SparkConf().setAppName("wordCount");
+        SparkConf conf = new SparkConf().setMaster("local").setAppName("wordCount");
         JavaSparkContext sc = new JavaSparkContext(conf);
         // Load input data.
         JavaRDD<String> textFile = sc.textFile(args[0]);
