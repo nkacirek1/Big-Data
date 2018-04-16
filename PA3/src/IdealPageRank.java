@@ -1,33 +1,15 @@
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
-import java.util.regex.Pattern;
+import org.apache.spark.SparkConf;
+import org.apache.spark.api.java.JavaSparkContext;
 import scala.Tuple2;
-import com.google.common.collect.Iterables;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.sql.SparkSession;
 
-/**
- * Computes the PageRank of URLs from an input file. Input file should
- * be in format of:
- * URL         neighbor URL
- * URL         neighbor URL
- * URL         neighbor URL
- * ...
- * where URL and their neighbors are separated by space(s).
- *
- * This is an example implementation for learning how to use Spark. For more conventional use,
- * please refer to org.apache.spark.graphx.lib.PageRank
- *
- * Example Usage:
- * <pre>
- * bin/run-example JavaPageRank data/mllib/pagerank_data.txt 10
- * </pre>
- */
 public final class IdealPageRank {
-    private static final Pattern SPACES = Pattern.compile("\\s+");
-
     private static class Sum implements Function2<Double, Double, Double> {
         @Override
         public Double call(Double a, Double b) {
@@ -36,48 +18,53 @@ public final class IdealPageRank {
     }
 
     public static void main(String[] args) throws Exception {
-        if (args.length < 2) {
-            System.err.println("Usage: JavaPageRank <file> <number_of_iterations>");
-            System.exit(1);
-        }
+//        SparkSession spark = SparkSession
+//                .builder()
+//                .appName("IdealPageRank")
+//                .getOrCreate();
 
-        SparkSession spark = SparkSession
-                .builder()
-                .appName("JavaPageRank")
-                .getOrCreate();
+        SparkConf conf = new SparkConf().setMaster("local").setAppName("IdealPageRank");
+        JavaSparkContext sc = new JavaSparkContext(conf);
 
-        // Loads in input file. It should be in format of:
-        //     URL         neighbor URL
-        //     URL         neighbor URL
-        //     URL         neighbor URL
-        //     ...
         // Read input link dataset as RDD (Load data)
-        JavaRDD<String> lines = spark.read().textFile(args[0]).javaRDD();
+        JavaRDD<String> lines = sc.textFile(args[0]);
 
-        // Loads all URLs from input file and initialize their neighbors.
-        JavaPairRDD<String, Iterable<String>> links = lines.mapToPair(s -> {
-            String[] parts = SPACES.split(s);
-            return new Tuple2<>(parts[0], parts[1]);
-        }).distinct().groupByKey().cache();
+        //Create newRDD,in the form {(A→[B C D], B→[A D], C→[A], D→[B C]} (Preprocessing step)
+        //read line and split by colon, the thing on the left is the key and on the right is the group of values
+        JavaPairRDD<String, String> links = lines.mapToPair(s -> {
+            //String[] parts = SPACES.split(s);
+            String[] parts = s.split(":");
+            return new Tuple2<>(parts[0], parts[1].trim());
+        }).distinct().cache();
 
-        // Loads all URLs with other URL(s) link to from input file and initialize ranks of them to one.
+        // Initialize ranks of incoming pages to 1.0, to give the form { (A → 1.0), (B → 1.0), (C → 1.0), (D → 1.0) }
         JavaPairRDD<String, Double> ranks = links.mapValues(rs -> 1.0);
+        //ranks.saveAsTextFile("ranks");
 
-        // Calculates and updates URL ranks continuously using PageRank algorithm.
-        for (int current = 0; current < Integer.parseInt(args[1]); current++) {
+        // Calculates and updates ranks continuously using PageRank algorithm.
+        for (int current = 0; current < 25; current++) {
+            //Join; to give form,{ A→([B,C],1.0),B→([A,D],1.0),...}
+            // contribs: { (B, _), (C, _), (A, _), (D, _), ... }
             // Calculates URL contributions to the rank of other URLs.
             JavaPairRDD<String, Double> contribs = links.join(ranks).values()
                     .flatMapToPair(s -> {
-                        int urlCount = Iterables.size(s._1());
+                        String[] parsedLinks = s._1.split("\\s");
+                        int linkCount = parsedLinks.length;
+                        //int urlCount = Iterables.size(s._1());
+                        System.out.println("linkCount: " + linkCount);
+                        //int urlCount = parsedLinks.length-1;
                         List<Tuple2<String, Double>> results = new ArrayList<>();
-                        for (String n : s._1) {
-                            results.add(new Tuple2<>(n, s._2() / urlCount));
+                        for (String n : parsedLinks) {
+                            results.add(new Tuple2<>(n, s._2() / linkCount));
                         }
                         return results.iterator();
                     });
 
             // Re-calculates URL ranks based on neighbor contributions.
-            ranks = contribs.reduceByKey(new Sum()).mapValues(sum -> 0.15 + sum * 0.85);
+            //with taxation
+            //ranks = contribs.reduceByKey(new Sum()).mapValues(sum -> 0.15 + sum * 0.85);
+            //without taxation
+            ranks = contribs.reduceByKey(new Sum()).mapValues(sum -> sum);
         }
 
         // Collects all URL ranks and dump them to console.
@@ -86,6 +73,5 @@ public final class IdealPageRank {
             System.out.println(tuple._1() + " has rank: " + tuple._2() + ".");
         }
 
-        spark.stop();
     }
 }
