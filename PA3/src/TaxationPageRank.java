@@ -27,7 +27,7 @@ public final class TaxationPageRank {
     public static void main(String[] args) throws Exception {
 
         //Application initialization
-        SparkConf conf = new SparkConf().setMaster("local").setAppName("IdealPageRank");
+        SparkConf conf = new SparkConf().setMaster("local").setAppName("TaxationPageRank");
         JavaSparkContext sc = new JavaSparkContext(conf);
 
         // Read link data set as RDD (Load data)
