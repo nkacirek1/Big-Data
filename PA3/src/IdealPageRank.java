@@ -50,9 +50,6 @@ public final class IdealPageRank {
                     .flatMapToPair(s -> {
                         String[] parsedLinks = s._1.split("\\s");
                         int linkCount = parsedLinks.length;
-                        //int urlCount = Iterables.size(s._1());
-                        System.out.println("linkCount: " + linkCount);
-                        //int urlCount = parsedLinks.length-1;
                         List<Tuple2<String, Double>> results = new ArrayList<>();
                         for (String n : parsedLinks) {
                             results.add(new Tuple2<>(n, s._2() / linkCount));
@@ -67,8 +64,22 @@ public final class IdealPageRank {
             ranks = contribs.reduceByKey(new Sum()).mapValues(sum -> sum);
         }
 
-        // Collects all URL ranks and dump them to console.
-        List<Tuple2<String, Double>> output = ranks.collect();
+        //swaps the key and values to sort by key
+        JavaPairRDD<Double, String> swap = ranks.mapToPair(s -> {
+            return new Tuple2<>(s._2, s._1);
+        });
+
+        //sort by the page rank in descending order
+        JavaPairRDD<Double, String> order = swap.sortByKey(false);
+
+        //swap back
+        JavaPairRDD<String, Double> finalSwap = order.mapToPair(s -> {
+            return new Tuple2<>(s._2, s._1);
+        });
+
+        //output
+        List<Tuple2<String, Double>> output = finalSwap.collect();
+
         for (Tuple2<?,?> tuple : output) {
             System.out.println(tuple._1() + " has rank: " + tuple._2() + ".");
         }
