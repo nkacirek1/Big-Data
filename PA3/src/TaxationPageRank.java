@@ -7,7 +7,7 @@ import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function2;
 
-public final class IdealPageRank {
+public final class TaxationPageRank {
 
     private static Integer lineNumber = 0;
 
@@ -62,8 +62,8 @@ public final class IdealPageRank {
                     });
 
             // Re-calculates URL ranks based on neighbor contributions.
-            //without taxation
-            ranks = contribs.reduceByKey(new Sum()).mapValues(sum -> sum);
+            //with taxation
+            ranks = contribs.reduceByKey(new Sum()).mapValues(sum -> 0.15 + sum * 0.85);
         }
 
         //read in the titles file
