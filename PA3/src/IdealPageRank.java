@@ -10,11 +10,19 @@ import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.sql.SparkSession;
 
 public final class IdealPageRank {
+
+    public static Integer lineNumber = 0;
+
     private static class Sum implements Function2<Double, Double, Double> {
         @Override
         public Double call(Double a, Double b) {
             return a + b;
         }
+    }
+
+    public static Tuple2<String, String> incrementLine(String s){
+        lineNumber++;
+        return new Tuple2<>(Integer.toString(lineNumber), s);
     }
 
     public static void main(String[] args) throws Exception {
@@ -64,8 +72,20 @@ public final class IdealPageRank {
             ranks = contribs.reduceByKey(new Sum()).mapValues(sum -> sum);
         }
 
+        //read in the titles file
+        JavaRDD<String> titleFile = sc.textFile(args[1]);
+
+        //map the title with the line number as the key
+        JavaPairRDD<String, String> titles = titleFile.mapToPair(s -> incrementLine(s));
+
+        //join together the titles and the ranks RDD's to get titles with their page ranks
+        JavaPairRDD<String, Tuple2<String, Double>> joined = titles.join(ranks);
+
+        //grab the values
+        JavaRDD<Tuple2<String, Double>> PR_with_title = joined.values();
+
         //swaps the key and values to sort by key
-        JavaPairRDD<Double, String> swap = ranks.mapToPair(s -> {
+        JavaPairRDD<Double, String> swap = PR_with_title.mapToPair(s -> {
             return new Tuple2<>(s._2, s._1);
         });
 
@@ -73,16 +93,12 @@ public final class IdealPageRank {
         JavaPairRDD<Double, String> order = swap.sortByKey(false);
 
         //swap back
-        JavaPairRDD<String, Double> finalSwap = order.mapToPair(s -> {
+        JavaPairRDD<String, Double> finalPageRank = order.mapToPair(s -> {
             return new Tuple2<>(s._2, s._1);
         });
 
-        //output
-        List<Tuple2<String, Double>> output = finalSwap.collect();
-
-        for (Tuple2<?,?> tuple : output) {
-            System.out.println(tuple._1() + " has rank: " + tuple._2() + ".");
-        }
+        //output the final RDD to the output file
+        finalPageRank.saveAsTextFile(args[2]);
 
     }
 }
