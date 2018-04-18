@@ -80,18 +80,14 @@ public final class WikiBomb {
         JavaPairRDD<String, String> links = linksFile.mapToPair(s -> {
             //String[] parts = SPACES.split(s);
             String[] parts = s.split(":");
-            return new Tuple2<>(parts[0], parts[1].trim());
+            return new Tuple2<>(parts[0], "4290745".trim());
         }).distinct().cache();
 
         //joins the surfing links with
         JavaPairRDD<String, Tuple2<String,String>> surfingSubset = finalTitles.join(links);
 
         //add the Rocky Mountain National Park's line number to the links string
-        JavaPairRDD<String, String> bomb = surfingSubset.mapToPair(s -> {
-            //gets rid of the titles
-            String manipulatedLinks = s._2()._2() + " 4290745";
-            return new Tuple2<>(s._1(), manipulatedLinks);
-        });
+        JavaPairRDD<String, String> bomb = surfingSubset.mapToPair(s -> new Tuple2<>(s._1(), s._2()._2()));
 
         //run page rank of this subset
         // Initialize ranks of incoming pages to 1.0, to give the form { (A → 1.0), (B → 1.0), (C → 1.0), (D → 1.0) }
