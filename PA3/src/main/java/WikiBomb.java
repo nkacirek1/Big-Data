@@ -27,18 +27,17 @@ public final class WikiBomb {
                 .appName("WikiBomb")
                 .getOrCreate();
 
-        //Local Application initialization
-//        SparkConf conf = new SparkConf().setMaster("local[2]").setAppName("WikiBomb");
-//        JavaSparkContext sc = new JavaSparkContext(conf);
-
         //read in the titles file and put it into a Dataset
         Dataset<Row> titleFile = sc.read().text(args[1]);
-        titleFile.show();
-        titleFile.select("value").where("UPPER(value) LIKE UPPER('%A%')").show();
+        Dataset<Row> titleSubset = titleFile.select("value").where("UPPER(value) LIKE UPPER('%A%')");
+
+        //put the subset of titles into an RDD to be joined with the links
+        JavaRDD<String> convertTitles = titleSubset.javaRDD().map(row -> row.mkString());
+        convertTitles.saveAsTextFile(args[2]);
 
 //        AtomicInteger lineNumber = new AtomicInteger(0);
 //        //map the title with the line number as the key
-//        JavaPairRDD<String, String> titles = titleFile.mapToPair(s -> {
+//        JavaPairRDD<String, String> titles = convertTitles.mapToPair(s -> {
 //            lineNumber.addAndGet(1);
 //            return new Tuple2<>(lineNumber.toString(),s);
 //        });
