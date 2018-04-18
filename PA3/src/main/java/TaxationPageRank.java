@@ -6,6 +6,7 @@ import scala.Tuple2;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function2;
+import org.apache.spark.sql.SparkSession;
 
 public final class TaxationPageRank {
 
@@ -26,12 +27,18 @@ public final class TaxationPageRank {
 
     public static void main(String[] args) throws Exception {
 
-        //Application initialization
-        SparkConf conf = new SparkConf().setMaster("local").setAppName("TaxationPageRank");
-        JavaSparkContext sc = new JavaSparkContext(conf);
+        SparkSession sc = SparkSession
+            .builder()
+            .appName("TaxationPageRank")
+            .getOrCreate();
+        
+
+	//Local Application initialization
+        //SparkConf conf = new SparkConf().setMaster("local").setAppName("TaxationPageRank");
+        //JavaSparkContext sc = new JavaSparkContext(conf);
 
         // Read link data set as RDD (Load data)
-        JavaRDD<String> lines = sc.textFile(args[0]);
+        JavaRDD<String> lines = sc.read().textFile(args[0]).javaRDD();
 
         //Create newRDD,in the form {(A→[B C D], B→[A D], C→[A], D→[B C]} (Preprocessing step)
         //read line and split by colon, the thing on the left is the key and on the right is the group of values
@@ -67,7 +74,7 @@ public final class TaxationPageRank {
         }
 
         //read in the titles file
-        JavaRDD<String> titleFile = sc.textFile(args[1]);
+        JavaRDD<String> titleFile = sc.read().textFile(args[1]).javaRDD();
 
         //map the title with the line number as the key
         JavaPairRDD<String, String> titles = titleFile.mapToPair(s -> incrementLine(s));
@@ -86,5 +93,6 @@ public final class TaxationPageRank {
         //output the final RDD to the output file
         finalPageRank.saveAsTextFile(args[2]);
 
+	sc.stop();
     }
 }
