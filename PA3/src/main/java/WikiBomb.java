@@ -66,16 +66,14 @@ public final class WikiBomb {
 
         Dataset<Row> titles = sc.createDataFrame(titlesWithLineNumbers, Titles.class);
         titles.createOrReplaceTempView("titles");
-        titles.show();
         Dataset<Row> titlesQuery = sc.sql("SELECT * FROM titles WHERE UPPER(title) LIKE UPPER('%A%')");
-        titlesQuery.show();
+
+        //put the subset of titles into an RDD to be joined with the links
+        JavaRDD<Row> convertTitles = titlesQuery.javaRDD();
+        convertTitles.saveAsTextFile("convertTitles");
         System.exit(0);
 
-//        //put the subset of titles into an RDD to be joined with the links
-//        JavaPairRDD<String,String> convertTitles = titlesQuery.javaRDD().map(row -> new Tuple2<>(row.));
-//
-//
-//
+
 //        // Read link data set as RDD (Load data)
 //        JavaRDD<String> lines = sc.read().textFile(args[0]).javaRDD();
 ////
