@@ -81,7 +81,7 @@ public final class WikiBomb {
             //String[] parts = SPACES.split(s);
             String[] parts = s.split(":");
             return new Tuple2<>(parts[0], "4290745".trim());
-        }).distinct().cache();
+        });
 
         //joins the surfing links with
         JavaPairRDD<String, Tuple2<String,String>> surfingSubset = finalTitles.join(links);
