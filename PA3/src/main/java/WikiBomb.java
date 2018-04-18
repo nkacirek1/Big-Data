@@ -2,6 +2,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
+import scala.Serializable;
 import scala.Tuple2;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
@@ -20,6 +21,32 @@ public final class WikiBomb {
         }
     }
 
+    public static class Titles implements Serializable {
+        private String lineNumber;
+        private String title;
+
+        public Titles(String lineNumber, String title){
+            this.lineNumber = lineNumber;
+            this.title = title;
+        }
+
+        public String getLineNumber(){
+            return lineNumber;
+        }
+
+        public String getTitle(){
+            return title;
+        }
+
+        public void setLineNumber(String lineNumber){
+            this.lineNumber = lineNumber;
+        }
+
+        public void setTitle(String title){
+            this.title = title;
+        }
+    }
+
     public static void main(String[] args) throws Exception {
 
         SparkSession sc = SparkSession
@@ -27,33 +54,39 @@ public final class WikiBomb {
                 .appName("WikiBomb")
                 .getOrCreate();
 
-        //read in the titles file and put it into a Dataset
-        Dataset<Row> titleFile = sc.read().text(args[1]);
-        Dataset<Row> titleSubset = titleFile.select("value").where("UPPER(value) LIKE UPPER('%A%') or value = 'B'");
+        //read in the titles file and put it into a JavaRDD
+        JavaRDD<String> titleFile = sc.read().textFile(args[1]).javaRDD();
 
-        //put the subset of titles into an RDD to be joined with the links
-        JavaRDD<String> convertTitles = titleSubset.javaRDD().map(row -> row.mkString());
-
-        //map the title with the line number as the key
+        //map all the titles with their line numbers
         AtomicInteger lineNumber = new AtomicInteger(0);
-        JavaPairRDD<String, String> titlesWithLineNumber = convertTitles.mapToPair(s -> {
+        JavaRDD<Titles> titlesWithLineNumbers = titleFile.map(s -> {
             lineNumber.addAndGet(1);
-            return new Tuple2<>(lineNumber.toString(),s);
+            return new Titles(lineNumber.toString(), s);
         });
-        titlesWithLineNumber.saveAsTextFile(args[2]);
 
+        Dataset<Row> titles = sc.createDataFrame(titlesWithLineNumbers, Titles.class);
+        titles.createOrReplaceTempView("titles");
+        Dataset<Row> titlesQuery = sc.sql("SELECT * FROM titles WHERE UPPER(value) LIKE UPPER('%A%')");
+        titlesQuery.show();
+        System.exit(0);
 
+//        //put the subset of titles into an RDD to be joined with the links
+//        JavaPairRDD<String,String> convertTitles = titlesQuery.javaRDD().map(row -> new Tuple2<>(row.));
+//
+//
+//
 //        // Read link data set as RDD (Load data)
 //        JavaRDD<String> lines = sc.read().textFile(args[0]).javaRDD();
-//        //JavaRDD<String> lines = sc.textFile(args[0]);
-//
-//        //Create newRDD,in the form {(A→[B C D], B→[A D], C→[A], D→[B C]} (Preprocessing step)
-//        //read line and split by colon, the thing on the left is the key and on the right is the group of values
+////
+////        //Create newRDD,in the form {(A→[B C D], B→[A D], C→[A], D→[B C]} (Preprocessing step)
+////        //read line and split by colon, the thing on the left is the key and on the right is the group of values
 //        JavaPairRDD<String, String> links = lines.mapToPair(s -> {
 //            //String[] parts = SPACES.split(s);
 //            String[] parts = s.split(":");
 //            return new Tuple2<>(parts[0], parts[1].trim());
 //        }).distinct().cache();
+//
+//        JavaPairRDD<String, Tuple2<String, String>> subsetJoin = links.join(titlesWithLineNumber);
 //
 //        // Initialize ranks of incoming pages to 1.0, to give the form { (A → 1.0), (B → 1.0), (C → 1.0), (D → 1.0) }
 //        JavaPairRDD<String, Double> ranks = links.mapValues(rs -> 1.0);
