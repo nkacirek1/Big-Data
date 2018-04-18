@@ -66,6 +66,7 @@ public final class WikiBomb {
 
         Dataset<Row> titles = sc.createDataFrame(titlesWithLineNumbers, Titles.class);
         titles.createOrReplaceTempView("titles");
+        titles.show();
         Dataset<Row> titlesQuery = sc.sql("SELECT * FROM titles WHERE UPPER(title) LIKE UPPER('%A%')");
         titlesQuery.show();
         System.exit(0);
