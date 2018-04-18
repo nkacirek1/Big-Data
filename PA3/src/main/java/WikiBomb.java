@@ -34,6 +34,7 @@ public final class WikiBomb {
         //read in the titles file and put it into a Dataset
         Dataset<Row> titleFile = sc.read().text(args[1]);
         titleFile.show();
+        titleFile.select("value").where("UPPER(value) LIKE UPPER('%A%')").show();
 
 //        AtomicInteger lineNumber = new AtomicInteger(0);
 //        //map the title with the line number as the key
