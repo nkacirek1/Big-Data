@@ -7,6 +7,9 @@ import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.sql.SparkSession;
+import scala.xml.Atom;
+
+import java.util.concurrent.atomic.AtomicInteger;
 
 public final class IdealPageRank {
 
@@ -17,12 +20,6 @@ public final class IdealPageRank {
         public Double call(Double a, Double b) {
             return a + b;
         }
-    }
-
-    //helper method to increment the line number with the titles
-    private static Tuple2<String, String> incrementLine(String s){
-        lineNumber++;
-        return new Tuple2<>(Integer.toString(lineNumber), s);
     }
 
     public static void main(String[] args) throws Exception {
@@ -75,8 +72,12 @@ public final class IdealPageRank {
         //read in the titles file
         JavaRDD<String> titleFile = sc.read().textFile(args[1]).javaRDD();
 
+        AtomicInteger lineNumber = new AtomicInteger(0);
         //map the title with the line number as the key
-        JavaPairRDD<String, String> titles = titleFile.mapToPair(s -> incrementLine(s));
+        JavaPairRDD<String, String> titles = titleFile.mapToPair(s -> {
+            lineNumber.addAndGet(1);
+            return new Tuple2<>(lineNumber.toString(),s);
+        });
 
         //inner join the titles and the ranks RDD's to match titles with their page ranks
         //write the values (Title,Page_Rank) to RDD
@@ -91,8 +92,7 @@ public final class IdealPageRank {
 
         //output the final RDD to the output file
         finalPageRank.saveAsTextFile(args[2]);
-	
-	sc.stop();
+        sc.stop();
 
     }
 }
