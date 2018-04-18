@@ -66,76 +66,84 @@ public final class WikiBomb {
 
         Dataset<Row> titles = sc.createDataFrame(titlesWithLineNumbers, Titles.class);
         titles.createOrReplaceTempView("titles");
-        Dataset<Row> titlesQuery = sc.sql("SELECT * FROM titles WHERE UPPER(title) LIKE UPPER('%A%')");
+        Dataset<Row> titlesQuery = sc.sql("SELECT * FROM titles WHERE UPPER(title) LIKE UPPER('%surfing%')");
 
         //put the subset of titles into an RDD to be joined with the links
-        JavaPairRDD<String, String> convertTitles = titlesQuery.javaRDD().mapToPair(row ->
+        JavaPairRDD<String, String> finalTitles = titlesQuery.javaRDD().mapToPair(row ->
                 new Tuple2<>(row.getString(0), row.getString(1)));
-        convertTitles.saveAsTextFile("convertTitles");
+
+        // Read link data set as RDD (Load data)
+        JavaRDD<String> linksFile = sc.read().textFile(args[0]).javaRDD();
+
+        //Create newRDD,in the form {(A→[B C D], B→[A D], C→[A], D→[B C]} (Preprocessing step)
+        //read line and split by colon, the thing on the left is the key and on the right is the group of values
+        JavaPairRDD<String, String> links = linksFile.mapToPair(s -> {
+            //String[] parts = SPACES.split(s);
+            String[] parts = s.split(":");
+            return new Tuple2<>(parts[0], parts[1].trim());
+        }).distinct().cache();
+
+        //joins the surfing links with
+        JavaPairRDD<String, Tuple2<String,String>> surfingSubset = finalTitles.join(links);
+
+        //add the Rocky Mountain National Park's line number to the links string
+        JavaPairRDD<String, String> bomb = surfingSubset.mapToPair(s -> {
+            //gets rid of the titles
+            String manipulatedLinks = s._2()._2() + " 4290745";
+            return new Tuple2<>(s._1(), manipulatedLinks);
+        });
+
+        //run page rank of this subset
+        // Initialize ranks of incoming pages to 1.0, to give the form { (A → 1.0), (B → 1.0), (C → 1.0), (D → 1.0) }
+        JavaPairRDD<String, Double> ranks = links.mapValues(rs -> 1.0);
+
+        // Calculates and updates ranks continuously using PageRank algorithm.
+        for (int current = 0; current < 25; current++) {
+
+            //Join; to give form,{ A→([B,C],1.0),B→([A,D],1.0),...}
+            // contribs: { (B, _), (C, _), (A, _), (D, _), ... }
+            // Calculates URL contributions to the rank of other URLs.
+            JavaPairRDD<String, Double> contribs = links.join(ranks).values()
+                    .flatMapToPair(s -> {
+                        String[] parsedLinks = s._1().split("\\s");
+                        int linkCount = parsedLinks.length;
+                        List<Tuple2<String, Double>> results = new ArrayList<>();
+                        for (String n : parsedLinks) {
+                            results.add(new Tuple2<>(n, s._2() / linkCount));
+                        }
+                        return results.iterator();
+                    });
+
+            // Re-calculates URL ranks based on neighbor contributions.
+            //without taxation
+            ranks = contribs.reduceByKey(new Sum()).mapValues(sum -> sum);
+        }
+
+        //map all the titles with their line numbers
+        AtomicInteger lineNumber2 = new AtomicInteger(0);
+        JavaPairRDD<String, String> titlesWithLineNumbers2 = titleFile.mapToPair(s -> {
+            lineNumber2.addAndGet(1);
+            return new Tuple2<>(lineNumber2.toString(),s);
+        });
+
+        //inner join the titles and the ranks RDD's to match titles with their page ranks
+        //write the values (Title,Page_Rank) to RDD
+        JavaRDD<Tuple2<String, Double>> PR_with_title = titlesWithLineNumbers2.join(ranks).values();
+
+        //swaps the key and values, then sorts by the PageRank in descending order
+        JavaPairRDD<Double, String> swap = PR_with_title.mapToPair(s ->
+                new Tuple2<>(s._2(), s._1())).sortByKey(false);
+
+        //swap back so will now display Title, PageRank sorted in descending order by PR
+        JavaPairRDD<String, Double> finalPageRank = swap.mapToPair(s -> new Tuple2<>(s._2(), s._1()));
+
+        //output the final RDD to the output file
+        finalPageRank.saveAsTextFile(args[2]);
+        sc.stop();
 
 
 
-//        // Read link data set as RDD (Load data)
-//        JavaRDD<String> lines = sc.read().textFile(args[0]).javaRDD();
-////
-////        //Create newRDD,in the form {(A→[B C D], B→[A D], C→[A], D→[B C]} (Preprocessing step)
-////        //read line and split by colon, the thing on the left is the key and on the right is the group of values
-//        JavaPairRDD<String, String> links = lines.mapToPair(s -> {
-//            //String[] parts = SPACES.split(s);
-//            String[] parts = s.split(":");
-//            return new Tuple2<>(parts[0], parts[1].trim());
-//        }).distinct().cache();
-//
-//        JavaPairRDD<String, Tuple2<String, String>> subsetJoin = links.join(titlesWithLineNumber);
-//
-//        // Initialize ranks of incoming pages to 1.0, to give the form { (A → 1.0), (B → 1.0), (C → 1.0), (D → 1.0) }
-//        JavaPairRDD<String, Double> ranks = links.mapValues(rs -> 1.0);
-//
-//        // Calculates and updates ranks continuously using PageRank algorithm.
-//        for (int current = 0; current < 25; current++) {
-//
-//            //Join; to give form,{ A→([B,C],1.0),B→([A,D],1.0),...}
-//            // contribs: { (B, _), (C, _), (A, _), (D, _), ... }
-//            // Calculates URL contributions to the rank of other URLs.
-//            JavaPairRDD<String, Double> contribs = links.join(ranks).values()
-//                    .flatMapToPair(s -> {
-//                        String[] parsedLinks = s._1().split("\\s");
-//                        int linkCount = parsedLinks.length;
-//                        List<Tuple2<String, Double>> results = new ArrayList<>();
-//                        for (String n : parsedLinks) {
-//                            results.add(new Tuple2<>(n, s._2() / linkCount));
-//                        }
-//                        return results.iterator();
-//                    });
-//
-//            // Re-calculates URL ranks based on neighbor contributions.
-//            //without taxation
-//            ranks = contribs.reduceByKey(new Sum()).mapValues(sum -> sum);
-//        }
-//
-//        //read in the titles file
-//        JavaRDD<String> titleFile = sc.read().textFile(args[1]).javaRDD();
-//
-//        AtomicInteger lineNumber = new AtomicInteger(0);
-//        //map the title with the line number as the key
-//        JavaPairRDD<String, String> titles = titleFile.mapToPair(s -> {
-//            lineNumber.addAndGet(1);
-//            return new Tuple2<>(lineNumber.toString(),s);
-//        });
-//
-//        //inner join the titles and the ranks RDD's to match titles with their page ranks
-//        //write the values (Title,Page_Rank) to RDD
-//        JavaRDD<Tuple2<String, Double>> PR_with_title = titles.join(ranks).values();
-//
-//        //swaps the key and values, then sorts by the PageRank in descending order
-//        JavaPairRDD<Double, String> swap = PR_with_title.mapToPair(s ->
-//                new Tuple2<>(s._2(), s._1())).sortByKey(false);
-//
-//        //swap back so will now display Title, PageRank sorted in descending order by PR
-//        JavaPairRDD<String, Double> finalPageRank = swap.mapToPair(s -> new Tuple2<>(s._2(), s._1()));
-//
-//        //output the final RDD to the output file
-//        finalPageRank.saveAsTextFile(args[2]);
+
         sc.stop();
 
     }
