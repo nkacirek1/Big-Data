@@ -95,7 +95,7 @@ public final class WikiBomb {
 
         //run page rank of this subset
         // Initialize ranks of incoming pages to 1.0, to give the form { (A → 1.0), (B → 1.0), (C → 1.0), (D → 1.0) }
-        JavaPairRDD<String, Double> ranks = links.mapValues(rs -> 1.0);
+        JavaPairRDD<String, Double> ranks = bomb.mapValues(rs -> 1.0);
 
         // Calculates and updates ranks continuously using PageRank algorithm.
         for (int current = 0; current < 25; current++) {
