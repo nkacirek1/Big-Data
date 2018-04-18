@@ -24,7 +24,7 @@ public final class WikiBomb {
 
         SparkSession sc = SparkSession
                 .builder()
-                .appName("IdealPageRank")
+                .appName("WikiBomb")
                 .getOrCreate();
 
         //Local Application initialization
