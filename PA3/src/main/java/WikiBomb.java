@@ -24,7 +24,7 @@ public final class WikiBomb {
 
         SparkSession sc = SparkSession
                 .builder()
-                .appName("IdealPageRank")
+                .appName("WikiBomb")
                 .getOrCreate();
 
         //Local Application initialization
@@ -32,7 +32,7 @@ public final class WikiBomb {
 //        JavaSparkContext sc = new JavaSparkContext(conf);
 
         //read in the titles file and put it into a Dataset
-        Dataset<String> titleFile = sc.read().textFile(args[1]);
+        Dataset<Row> titleFile = sc.read().text(args[1]);
         titleFile.show();
 
 //        AtomicInteger lineNumber = new AtomicInteger(0);
