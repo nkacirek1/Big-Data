@@ -29,20 +29,20 @@ public final class WikiBomb {
 
         //read in the titles file and put it into a Dataset
         Dataset<Row> titleFile = sc.read().text(args[1]);
-        Dataset<Row> titleSubset = titleFile.select("value").where("UPPER(value) LIKE UPPER('%A%')");
+        Dataset<Row> titleSubset = titleFile.select("value").where("UPPER(value) LIKE UPPER('%A%') or value = 'B'");
 
         //put the subset of titles into an RDD to be joined with the links
         JavaRDD<String> convertTitles = titleSubset.javaRDD().map(row -> row.mkString());
-        convertTitles.saveAsTextFile(args[2]);
 
-//        AtomicInteger lineNumber = new AtomicInteger(0);
-//        //map the title with the line number as the key
-//        JavaPairRDD<String, String> titles = convertTitles.mapToPair(s -> {
-//            lineNumber.addAndGet(1);
-//            return new Tuple2<>(lineNumber.toString(),s);
-//        });
-//
-//
+        //map the title with the line number as the key
+        AtomicInteger lineNumber = new AtomicInteger(0);
+        JavaPairRDD<String, String> titlesWithLineNumber = convertTitles.mapToPair(s -> {
+            lineNumber.addAndGet(1);
+            return new Tuple2<>(lineNumber.toString(),s);
+        });
+        titlesWithLineNumber.saveAsTextFile(args[2]);
+
+
 //        // Read link data set as RDD (Load data)
 //        JavaRDD<String> lines = sc.read().textFile(args[0]).javaRDD();
 //        //JavaRDD<String> lines = sc.textFile(args[0]);
