@@ -53,7 +53,7 @@ public final class TaxationPageRank {
             // Calculates URL contributions to the rank of other URLs.
             JavaPairRDD<String, Double> contribs = links.join(ranks).values()
                     .flatMapToPair(s -> {
-                        String[] parsedLinks = s._1.split("\\s");
+                        String[] parsedLinks = s._1().split("\\s");
                         int linkCount = parsedLinks.length;
                         List<Tuple2<String, Double>> results = new ArrayList<>();
                         for (String n : parsedLinks) {
@@ -83,10 +83,10 @@ public final class TaxationPageRank {
 
         //swaps the key and values, then sorts by the PageRank in descending order
         JavaPairRDD<Double, String> swap = PR_with_title.mapToPair(s ->
-                new Tuple2<>(s._2, s._1)).sortByKey(false);
+                new Tuple2<>(s._2(), s._1())).sortByKey(false);
 
         //swap back so will now display Title, PageRank sorted in descending order by PR
-        JavaPairRDD<String, Double> finalPageRank = swap.mapToPair(s -> new Tuple2<>(s._2, s._1));
+        JavaPairRDD<String, Double> finalPageRank = swap.mapToPair(s -> new Tuple2<>(s._2(), s._1()));
 
         //output the final RDD to the output file
         finalPageRank.saveAsTextFile(args[2]);
