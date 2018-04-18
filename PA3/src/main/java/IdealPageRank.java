@@ -52,7 +52,7 @@ public final class IdealPageRank {
             // Calculates URL contributions to the rank of other URLs.
             JavaPairRDD<String, Double> contribs = links.join(ranks).values()
                     .flatMapToPair(s -> {
-                        String[] parsedLinks = s._1.split("\\s");
+                        String[] parsedLinks = s._1().split("\\s");
                         int linkCount = parsedLinks.length;
                         List<Tuple2<String, Double>> results = new ArrayList<>();
                         for (String n : parsedLinks) {
@@ -73,19 +73,23 @@ public final class IdealPageRank {
         //map the title with the line number as the key
         JavaPairRDD<String, String> titles = titleFile.mapToPair(s -> {
             lineNumber.addAndGet(1);
-            return new Tuple2<>(lineNumber.toString(),s);
+            return new Tuple2<>(lineNumber.toString(), s);
         });
 
         //inner join the titles and the ranks RDD's to match titles with their page ranks
         //write the values (Title,Page_Rank) to RDD
-        JavaRDD<Tuple2<String, Double>> PR_with_title = titles.join(ranks).values();
+        JavaPairRDD<String,Tuple2<String, Double>> joined = titles.join(ranks);
+
+        JavaRDD<Tuple2<String, Double>> PR_with_title = joined.values();
 
         //swaps the key and values, then sorts by the PageRank in descending order
-        JavaPairRDD<Double, String> swap = PR_with_title.mapToPair(s ->
-                new Tuple2<>(s._2, s._1)).sortByKey(false);
+        JavaPairRDD<Double, String> swap = PR_with_title.mapToPair(s -> new Tuple2<>(s._2(), s._1()));
+
+        //swaps the key and values, then sorts by the PageRank in descending order
+        swap = swap.sortByKey(false);
 
         //swap back so will now display Title, PageRank sorted in descending order by PR
-        JavaPairRDD<String, Double> finalPageRank = swap.mapToPair(s -> new Tuple2<>(s._2, s._1));
+        JavaPairRDD<String, Double> finalPageRank = swap.mapToPair(s -> new Tuple2<>(s._2(), s._1()));
 
         //output the final RDD to the output file
         finalPageRank.saveAsTextFile(args[2]);
