@@ -85,6 +85,7 @@ public final class WikiBomb {
 
         //joins the surfing links with
         JavaPairRDD<String, Tuple2<String,String>> surfingSubset = finalTitles.join(links);
+        surfingSubset.saveAsTextFile("surfingSubset");
 
         //add the Rocky Mountain National Park's line number to the links string
         JavaPairRDD<String, String> bomb = surfingSubset.mapToPair(s -> new Tuple2<>(s._1(), s._2()._2()));
@@ -122,6 +123,8 @@ public final class WikiBomb {
             return new Tuple2<>(lineNumber2.toString(),s);
         });
 
+        titlesWithLineNumbers2.saveAsTextFile("titlesWithLineNumber");
+
         //inner join the titles and the ranks RDD's to match titles with their page ranks
         //write the values (Title,Page_Rank) to RDD
         JavaRDD<Tuple2<String, Double>> PR_with_title = titlesWithLineNumbers2.join(ranks).values();
@@ -135,11 +138,6 @@ public final class WikiBomb {
 
         //output the final RDD to the output file
         finalPageRank.saveAsTextFile(args[2]);
-        sc.stop();
-
-
-
-
         sc.stop();
 
     }
