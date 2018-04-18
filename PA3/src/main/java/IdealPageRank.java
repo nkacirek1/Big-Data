@@ -8,12 +8,9 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.sql.SparkSession;
 import scala.xml.Atom;
-
 import java.util.concurrent.atomic.AtomicInteger;
 
 public final class IdealPageRank {
-
-    private static Integer lineNumber = 0;
 
     private static class Sum implements Function2<Double, Double, Double> {
         @Override

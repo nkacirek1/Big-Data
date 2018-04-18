@@ -12,8 +12,6 @@ import org.apache.spark.sql.SparkSession;
 
 public final class TaxationPageRank {
 
-    private static Integer lineNumber = 0;
-
     private static class Sum implements Function2<Double, Double, Double> {
         @Override
         public Double call(Double a, Double b) {
